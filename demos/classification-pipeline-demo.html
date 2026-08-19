@@ -1,0 +1,975 @@
+<title>Classification Pipeline</title>
+<style>
+  :root{
+    --bg:#0a0e14;
+    --surface:#10161d;
+    --surface-2:#161e28;
+    --border:#232c38;
+    --border-strong:#37424f;
+    --text:#e7ecf2;
+    --text-muted:#8892a0;
+    --text-faint:#4a5563;
+    --accent:#4fa8ff;
+
+    --lane-text:#4c8dff;
+    --lane-sheet:#3fbf8f;
+    --lane-image:#a47cf0;
+    --lane-audio:#e570b0;
+    --lane-video:#3fd1d9;
+
+    --sev-none:#6b7684;
+    --sev-low:#d9a441;
+    --sev-medium:#e0793c;
+    --sev-high:#e23b3b;
+
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-sans);
+    padding:28px 28px 40px;
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+    min-height:100vh;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important;}
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead{
+    display:flex;
+    flex-wrap:wrap;
+    gap:20px 40px;
+    align-items:flex-end;
+    justify-content:space-between;
+    border-bottom:1px solid var(--border);
+    padding-bottom:18px;
+  }
+  .masthead-title{max-width:640px;}
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 8px;
+  }
+  h1{
+    font-family:var(--font-mono);
+    font-size:26px;
+    letter-spacing:0.02em;
+    text-transform:uppercase;
+    margin:0 0 10px;
+    text-wrap:balance;
+    font-weight:600;
+  }
+  .masthead-title p{
+    margin:0;
+    font-size:14px;
+    line-height:1.55;
+    color:var(--text-muted);
+    max-width:58ch;
+  }
+
+  .masthead-right{display:flex;flex-direction:column;gap:12px;align-items:flex-end;}
+
+  .controls{display:flex;align-items:center;gap:10px;}
+  .status{
+    display:flex; align-items:center; gap:7px;
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    margin-right:4px;
+  }
+  .status-dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--sev-none);
+    box-shadow:0 0 6px var(--sev-none);
+    flex-shrink:0;
+  }
+  .ctrl-btn{
+    display:flex; align-items:center; gap:7px;
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    color:var(--text);
+    background:var(--surface);
+    border:1px solid var(--border-strong);
+    border-radius:7px;
+    padding:7px 13px;
+    cursor:pointer;
+  }
+  .ctrl-btn svg{width:11px;height:11px;flex-shrink:0;}
+  .ctrl-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .ctrl-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  .stat-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;}
+  .stat-tile{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:9px 14px;
+    min-width:88px;
+  }
+  .stat-tile .n{
+    font-family:var(--font-mono);
+    font-variant-numeric:tabular-nums;
+    font-size:19px;
+    line-height:1.1;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .stat-tile .l{
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:0.09em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    margin-top:4px;
+    display:block;
+  }
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+  /* ---------- stage ---------- */
+  .stage-wrapper{
+    overflow-x:auto;
+    overflow-y:hidden;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:
+      radial-gradient(circle at 50% 0%, #121a24 0%, var(--bg) 70%);
+    padding:26px 10px 18px;
+  }
+  .stage{
+    position:relative;
+    width:1500px;
+    height:700px;
+    margin:0 auto;
+  }
+  .stage-label{
+    position:absolute;
+    top:-20px;
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+  }
+  canvas.particles{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    z-index:2;
+    pointer-events:none;
+  }
+
+  /* sources */
+  .sources-col{
+    position:absolute; left:0; top:0; width:224px; height:100%;
+    display:flex; flex-direction:column; justify-content:space-between;
+    z-index:1;
+  }
+  .env-panel{
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:var(--surface);
+    padding:12px 12px 14px;
+    height:47%;
+    display:flex; flex-direction:column;
+  }
+  .env-panel h3{
+    margin:0;
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    display:flex;
+    align-items:center;
+    gap:7px;
+  }
+  .env-panel h3 svg{width:13px;height:13px;color:var(--accent);flex-shrink:0;}
+  .env-boxes{display:flex;gap:8px;flex:1;margin-top:10px;}
+  .env-box{
+    flex:1;
+    border:1px dashed var(--border-strong);
+    border-radius:7px;
+    background:var(--surface-2);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px;
+    padding:6px;
+    text-align:center;
+  }
+  .env-box svg{width:18px;height:18px;color:var(--text-muted);}
+  .env-box span{
+    font-family:var(--font-mono);
+    font-size:9.5px;
+    letter-spacing:0.04em;
+    color:var(--text-muted);
+    line-height:1.3;
+  }
+
+  /* node markers */
+  .node-col{
+    position:absolute; top:50%; transform:translateY(-50%);
+    width:44px; display:flex; flex-direction:column; align-items:center; gap:8px;
+    z-index:1;
+  }
+  .node-col.intake{left:236px;}
+  .node-col.converge{left:1220px;}
+  .node-marker{
+    width:12px;height:12px;border-radius:3px;
+    background:var(--accent);
+    transform:rotate(45deg);
+    box-shadow:0 0 14px 1px var(--accent);
+  }
+  .node-col .node-label{
+    font-family:var(--font-mono);
+    font-size:9px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    text-align:center;
+    white-space:nowrap;
+  }
+
+  /* lanes */
+  .lanes-col{
+    position:absolute; left:296px; top:0; width:820px; height:100%;
+    display:flex; flex-direction:column; justify-content:space-between;
+    z-index:1;
+  }
+  .lane-row{display:flex; align-items:stretch; gap:14px; height:18.4%;}
+  .lane-label{
+    width:148px; flex-shrink:0;
+    display:flex; flex-direction:column; align-items:flex-end; justify-content:center;
+    text-align:right;
+    gap:3px;
+  }
+  .lane-label .shape-tag{display:flex; align-items:center; gap:7px;}
+  .lane-label .type{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    font-weight:600;
+  }
+  .lane-label .model{
+    font-family:var(--font-mono);
+    font-size:9.5px;
+    color:var(--text-muted);
+    letter-spacing:0.03em;
+  }
+  .lane-swatch{width:9px;height:9px;flex-shrink:0;}
+  .lane-zone{
+    flex:1;
+    border:1px solid var(--border);
+    border-radius:9px;
+    position:relative;
+    background:var(--zone-tint);
+    overflow:hidden;
+  }
+  .lane-zone::after{
+    content:"";
+    position:absolute; inset:0;
+    border-radius:9px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.02);
+  }
+  .lane-zone .zone-caption{
+    position:absolute; left:10px; top:6px;
+    font-family:var(--font-mono);
+    font-size:8.5px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+  }
+
+  /* outputs */
+  .outputs-col{
+    position:absolute; right:0; top:0; width:246px; height:100%;
+    display:flex; flex-direction:column; justify-content:space-between;
+    z-index:1;
+  }
+  .out-panel{
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:var(--surface);
+    padding:12px;
+    height:47%;
+    display:flex; flex-direction:column;
+  }
+  .out-panel h3{
+    margin:0 0 9px;
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    display:flex; align-items:center; gap:7px;
+  }
+  .out-panel h3 svg{width:13px;height:13px;color:var(--accent);flex-shrink:0;}
+  .out-zone{
+    flex:1;
+    border:1px solid var(--border-strong);
+    border-radius:7px;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 17px, rgba(255,255,255,0.018) 17px, rgba(255,255,255,0.018) 18px),
+      repeating-linear-gradient(90deg, transparent, transparent 17px, rgba(255,255,255,0.018) 17px, rgba(255,255,255,0.018) 18px),
+      var(--surface-2);
+  }
+
+  /* ---------- legend ---------- */
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:26px 44px;
+    padding-top:2px;
+  }
+  .legend-group h4{
+    margin:0 0 10px;
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+  }
+  .legend-items{display:flex; flex-wrap:wrap; gap:8px 20px;}
+  .legend-item{
+    display:flex; align-items:center; gap:8px;
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    color:var(--text-muted);
+  }
+  .shape{width:11px;height:11px;flex-shrink:0;display:inline-block;}
+  .shape.rrect{border-radius:3px;}
+  .shape.circle{border-radius:50%;}
+  .shape.diamond{transform:rotate(45deg);}
+  .shape.tri{
+    width:0;height:0;background:none !important;
+    border-left:6px solid transparent;
+    border-right:6px solid transparent;
+    border-bottom:11px solid var(--c);
+  }
+  .shape.grid{position:relative;}
+  .shape.grid::before,.shape.grid::after{content:"";position:absolute;background:rgba(0,0,0,0.35);}
+  .shape.grid::before{left:0;right:0;top:50%;height:1px;}
+  .shape.grid::after{top:0;bottom:0;left:50%;width:1px;}
+
+  .reduced-note{
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    color:var(--text-faint);
+    letter-spacing:0.03em;
+  }
+
+  .credit{
+    margin:10px 0 0;
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.02em;
+    color:var(--text-faint);
+  }
+  .credit-name{color:var(--text-muted);}
+  .credit a{color:var(--text-faint);text-decoration:none;border-bottom:1px dotted var(--border-strong);}
+  .credit a:hover{color:var(--accent);border-bottom-color:var(--accent);}
+  .credit a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+</style>
+
+<div class="masthead">
+  <div class="masthead-title">
+    <p class="eyebrow">Concept demo — data discovery &amp; classification</p>
+    <h1>Classification Pipeline</h1>
+    <p>Files stream in from on-prem and cloud storage, get routed to a scanner matched to their
+      type, are scored for sensitivity, and land in organized, severity-labeled storage. This is
+      an illustrative target-state concept, not a rendering of any specific POC tier's actual
+      detector stack.</p>
+    <p class="credit">
+      Created by <span class="credit-name">Alex Sabba</span> · <a href="mailto:alex.sabba@rbc.com">alex.sabba@rbc.com</a> · Senior Data Security Expert
+    </p>
+  </div>
+  <div class="masthead-right">
+    <div class="controls">
+      <span class="status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusLabel">Live</span>
+      </span>
+      <button type="button" class="ctrl-btn" id="playPauseBtn" aria-pressed="false">Pause</button>
+      <button type="button" class="ctrl-btn" id="resetBtn">Reset</button>
+    </div>
+    <div class="stat-row" id="statRow">
+      <div class="stat-tile"><div class="n" id="statTotal">0</div><span class="l">Scanned</span></div>
+      <div class="stat-tile"><div class="n"><span class="dot" style="background:var(--sev-none)"></span><span id="statNone">0</span></div><span class="l">No risk</span></div>
+      <div class="stat-tile"><div class="n"><span class="dot" style="background:var(--sev-low)"></span><span id="statLow">0</span></div><span class="l">Low</span></div>
+      <div class="stat-tile"><div class="n"><span class="dot" style="background:var(--sev-medium)"></span><span id="statMedium">0</span></div><span class="l">Medium</span></div>
+      <div class="stat-tile"><div class="n"><span class="dot" style="background:var(--sev-high)"></span><span id="statHigh">0</span></div><span class="l">High</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="stage-wrapper">
+  <div class="stage" id="stage">
+
+    <span class="stage-label" style="left:0;">Stage 0 — Sources</span>
+    <span class="stage-label" style="left:296px;">Stage 1&ndash;2 — Route &amp; scan</span>
+    <span class="stage-label" style="right:246px;">Stage 4 — Organized storage</span>
+
+    <canvas class="particles" id="canvas"></canvas>
+
+    <div class="sources-col">
+      <div class="env-panel">
+        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M2 6h12M6 6v8"/></svg>On-prem</h3>
+        <div class="env-boxes">
+          <div class="env-box" id="onprem-lake">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 12 Q6.5 8 10 12 T17 12"/><path d="M3 15 Q6.5 11 10 15 T17 15"/></svg>
+            <span>Data lake</span>
+          </div>
+          <div class="env-box" id="onprem-wh">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="10" cy="5" rx="6" ry="2.2"/><path d="M4 5v10a6 2.2 0 0 0 12 0V5"/><path d="M4 10a6 2.2 0 0 0 12 0"/></svg>
+            <span>Data warehouse</span>
+          </div>
+        </div>
+      </div>
+      <div class="env-panel">
+        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M4.5 10.5a2.5 2.5 0 0 1 0-5 3.5 3.5 0 0 1 6.7-1.2A2.75 2.75 0 0 1 11.5 10.5z"/></svg>Cloud</h3>
+        <div class="env-boxes">
+          <div class="env-box" id="cloud-lake">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 12 Q6.5 8 10 12 T17 12"/><path d="M3 15 Q6.5 11 10 15 T17 15"/></svg>
+            <span>Data lake</span>
+          </div>
+          <div class="env-box" id="cloud-wh">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="10" cy="5" rx="6" ry="2.2"/><path d="M4 5v10a6 2.2 0 0 0 12 0V5"/><path d="M4 10a6 2.2 0 0 0 12 0"/></svg>
+            <span>Data warehouse</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="node-col intake">
+      <div class="node-marker" id="intake-node"></div>
+      <span class="node-label">Intake</span>
+    </div>
+
+    <div class="lanes-col">
+      <div class="lane-row">
+        <div class="lane-label"><div class="shape-tag"><span class="type">Text / docs</span><span class="lane-swatch" style="background:var(--lane-text);border-radius:2px;"></span></div><span class="model">LLM content scanner</span></div>
+        <div class="lane-zone" id="lane-0-zone" style="--zone-tint:rgba(76,141,255,0.05);border-color:rgba(76,141,255,0.28);"><span class="zone-caption">scanning</span></div>
+      </div>
+      <div class="lane-row">
+        <div class="lane-label"><div class="shape-tag"><span class="type">Spreadsheets</span><span class="lane-swatch" style="background:var(--lane-sheet);border-radius:2px;"></span></div><span class="model">Structured-data scanner</span></div>
+        <div class="lane-zone" id="lane-1-zone" style="--zone-tint:rgba(63,191,143,0.05);border-color:rgba(63,191,143,0.28);"><span class="zone-caption">scanning</span></div>
+      </div>
+      <div class="lane-row">
+        <div class="lane-label"><div class="shape-tag"><span class="type">Images</span><span class="lane-swatch" style="background:var(--lane-image);border-radius:50%;"></span></div><span class="model">Image recognition model</span></div>
+        <div class="lane-zone" id="lane-2-zone" style="--zone-tint:rgba(164,124,240,0.05);border-color:rgba(164,124,240,0.28);"><span class="zone-caption">scanning</span></div>
+      </div>
+      <div class="lane-row">
+        <div class="lane-label"><div class="shape-tag"><span class="type">Audio</span><span class="lane-swatch" style="background:var(--lane-audio);border-radius:1px;transform:rotate(45deg);"></span></div><span class="model">Audio / speech model</span></div>
+        <div class="lane-zone" id="lane-3-zone" style="--zone-tint:rgba(229,112,176,0.05);border-color:rgba(229,112,176,0.28);"><span class="zone-caption">scanning</span></div>
+      </div>
+      <div class="lane-row">
+        <div class="lane-label"><div class="shape-tag"><span class="type">Video</span><span class="lane-swatch" style="background:var(--lane-video);border-radius:1px;"></span></div><span class="model">Video analysis model</span></div>
+        <div class="lane-zone" id="lane-4-zone" style="--zone-tint:rgba(63,209,217,0.05);border-color:rgba(63,209,217,0.28);"><span class="zone-caption">scanning</span></div>
+      </div>
+    </div>
+
+    <div class="node-col converge">
+      <div class="node-marker" id="converge-node"></div>
+      <span class="node-label">Severity&nbsp;check</span>
+    </div>
+
+    <div class="outputs-col">
+      <div class="out-panel">
+        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 12 Q5.5 9 8 12 T13 12"/><path d="M3 14.5 Q5.5 11.5 8 14.5 T13 14.5"/></svg>Organized data lake</h3>
+        <div class="out-zone" id="out-lake-zone"></div>
+      </div>
+      <div class="out-panel">
+        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><ellipse cx="8" cy="4" rx="5" ry="1.8"/><path d="M3 4v8a5 1.8 0 0 0 10 0V4"/><path d="M3 8a5 1.8 0 0 0 10 0"/></svg>Organized data warehouse</h3>
+        <div class="out-zone" id="out-warehouse-zone"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-group">
+    <h4>File type &rarr; scanner</h4>
+    <div class="legend-items">
+      <span class="legend-item"><span class="shape rrect" style="background:var(--lane-text)"></span>Text / docs</span>
+      <span class="legend-item"><span class="shape grid" style="background:var(--lane-sheet)"></span>Spreadsheets</span>
+      <span class="legend-item"><span class="shape circle" style="background:var(--lane-image)"></span>Images</span>
+      <span class="legend-item"><span class="shape diamond" style="background:var(--lane-audio)"></span>Audio</span>
+      <span class="legend-item"><span class="shape tri" style="--c:var(--lane-video)"></span>Video</span>
+    </div>
+  </div>
+  <div class="legend-group">
+    <h4>Assigned severity</h4>
+    <div class="legend-items">
+      <span class="legend-item"><span class="shape circle" style="background:var(--sev-none)"></span>No risk — shareable</span>
+      <span class="legend-item"><span class="shape circle" style="background:var(--sev-low)"></span>Low</span>
+      <span class="legend-item"><span class="shape circle" style="background:var(--sev-medium)"></span>Medium</span>
+      <span class="legend-item"><span class="shape circle" style="background:var(--sev-high)"></span>High</span>
+    </div>
+  </div>
+  <div class="legend-group" id="reducedGroup" style="display:none;">
+    <h4>Motion</h4>
+    <p class="reduced-note">Reduced-motion preference detected — the stream keeps running, with jitter and scan-glow toned down.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var stageEl = document.getElementById("stage");
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduced) document.getElementById("reducedGroup").style.display = "block";
+
+  var cs = getComputedStyle(document.documentElement);
+  var col = function(name){ return cs.getPropertyValue(name).trim(); };
+
+  var LANES = [
+    { key:"text",  color: col("--lane-text"),  shape:"rrect",  out:"lake" },
+    { key:"sheet", color: col("--lane-sheet"), shape:"grid",   out:"warehouse" },
+    { key:"image", color: col("--lane-image"), shape:"circle", out:"lake" },
+    { key:"audio", color: col("--lane-audio"), shape:"diamond",out:"lake" },
+    { key:"video", color: col("--lane-video"), shape:"tri",    out:"lake" }
+  ];
+  var TYPE_WEIGHTS = [0.30, 0.24, 0.20, 0.13, 0.13]; // text, sheet, image, audio, video
+
+  var SEV = [
+    { key:"none",   color: col("--sev-none")   },
+    { key:"low",    color: col("--sev-low")    },
+    { key:"medium", color: col("--sev-medium") },
+    { key:"high",   color: col("--sev-high")   }
+  ];
+  var SEV_WEIGHTS = [0.40, 0.30, 0.20, 0.10];
+
+  var accentColor = col("--accent");
+  var textFaint = col("--text-faint");
+
+  function weightedPick(weights){
+    var r = Math.random(), acc = 0;
+    for (var i=0;i<weights.length;i++){ acc += weights[i]; if (r <= acc) return i; }
+    return weights.length - 1;
+  }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  function easeInOut(t){ return t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2; }
+  function hexToRgb(hex){
+    hex = hex.replace("#","");
+    if (hex.length===3) hex = hex.split("").map(function(c){return c+c;}).join("");
+    var n = parseInt(hex,16);
+    return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+  }
+  function mixColor(hexA, hexB, t){
+    var a = hexToRgb(hexA), b = hexToRgb(hexB);
+    var r = Math.round(lerp(a.r,b.r,t)), g = Math.round(lerp(a.g,b.g,t)), bl = Math.round(lerp(a.b,b.b,t));
+    return "rgb("+r+","+g+","+bl+")";
+  }
+
+  // ---------- coordinate resolution ----------
+  var emitterEls = {
+    "onprem-lake": document.getElementById("onprem-lake"),
+    "onprem-wh":   document.getElementById("onprem-wh"),
+    "cloud-lake":  document.getElementById("cloud-lake"),
+    "cloud-wh":    document.getElementById("cloud-wh")
+  };
+  var emitterKeys = Object.keys(emitterEls);
+  var intakeEl = document.getElementById("intake-node");
+  var convergeEl = document.getElementById("converge-node");
+  var laneZoneEls = [0,1,2,3,4].map(function(i){ return document.getElementById("lane-"+i+"-zone"); });
+  var outZoneEls = { lake: document.getElementById("out-lake-zone"), warehouse: document.getElementById("out-warehouse-zone") };
+
+  var coords = {};
+  var outBounds = { lake:{x:0,y:0,w:0,h:0}, warehouse:{x:0,y:0,w:0,h:0} };
+  var laneMeta = [];
+  var dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+  function relRect(el){
+    var r = el.getBoundingClientRect();
+    var s = stageEl.getBoundingClientRect();
+    return { x: r.left - s.left, y: r.top - s.top, w: r.width, h: r.height };
+  }
+  function relCenter(el){
+    var r = relRect(el);
+    return { x: r.x + r.w/2, y: r.y + r.h/2 };
+  }
+
+  function computeCoords(){
+    emitterKeys.forEach(function(k){ coords["emitter:"+k] = relCenter(emitterEls[k]); });
+    coords["intake"] = relCenter(intakeEl);
+    coords["converge"] = relCenter(convergeEl);
+    laneMeta = laneZoneEls.map(function(el){
+      var r = relRect(el);
+      var y = r.y + r.h/2;
+      return { zoneLeft: r.x + 6, zoneRight: r.x + r.w - 6, y: y, top: r.y+6, bottom: r.y+r.h-6 };
+    });
+    laneMeta.forEach(function(m,i){
+      coords["lane-entry-"+i] = { x: m.zoneLeft, y: m.y };
+      coords["lane-exit-"+i]  = { x: m.zoneRight, y: m.y };
+    });
+    ["lake","warehouse"].forEach(function(k){
+      var r = relRect(outZoneEls[k]);
+      var pad = 8;
+      outBounds[k] = { x: r.x+pad, y: r.y+pad, w: r.w-pad*2, h: r.h-pad*2 };
+      coords["out-"+k] = { x: r.x+pad+10, y: r.y+pad+10 };
+    });
+
+    var stageRect = stageEl.getBoundingClientRect();
+    var w = Math.round(stageRect.width * dpr), h = Math.round(stageRect.height * dpr);
+    // Reassigning canvas.width/height clears the bitmap even when the value
+    // is unchanged — only touch it when the size actually moved, so a
+    // spurious resize/observer tick can't wipe a good frame for no reason.
+    if (canvas.width !== w || canvas.height !== h){
+      canvas.width = w;
+      canvas.height = h;
+    }
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  // ---------- particles ----------
+  var particles = [];
+  var settled = { lake: [], warehouse: [] };
+  var writeIndex = { lake: 0, warehouse: 0 };
+  var CELL = 15;
+
+  var stats = { total:0, none:0, low:0, medium:0, high:0 };
+  var statEls = {
+    total: document.getElementById("statTotal"),
+    none: document.getElementById("statNone"),
+    low: document.getElementById("statLow"),
+    medium: document.getElementById("statMedium"),
+    high: document.getElementById("statHigh")
+  };
+  function pushStats(){
+    statEls.total.textContent = stats.total;
+    statEls.none.textContent = stats.none;
+    statEls.low.textContent = stats.low;
+    statEls.medium.textContent = stats.medium;
+    statEls.high.textContent = stats.high;
+  }
+
+  function spawnParticle(){
+    var laneIdx = weightedPick(TYPE_WEIGHTS);
+    var lane = LANES[laneIdx];
+    var emitterKey = emitterKeys[Math.floor(Math.random()*emitterKeys.length)];
+    var path = [
+      "emitter:"+emitterKey, "intake",
+      "lane-entry-"+laneIdx, "lane-exit-"+laneIdx,
+      "converge", "out-"+lane.out
+    ];
+    return {
+      laneIdx: laneIdx,
+      shape: lane.shape,
+      baseColor: lane.color,
+      color: lane.color,
+      outDest: lane.out,
+      path: path,
+      seg: 0,
+      segT: 0,
+      speed: 150 + Math.random()*70,
+      jitterPhase: Math.random()*Math.PI*2,
+      jitterAmp: 3 + Math.random()*3,
+      severity: null,
+      settledAt: null
+    };
+  }
+
+  // Ring buffer over a fixed grid of cells sized to the output panel: every
+  // settle overwrites the next cell in sequence, so the panel keeps visibly
+  // refreshing forever instead of filling once and going static.
+  function settleParticle(p){
+    var key = p.outDest;
+    var bounds = outBounds[key];
+    var cols = Math.max(1, Math.floor(bounds.w / CELL));
+    var rows = Math.max(1, Math.floor(bounds.h / CELL));
+    var capacity = Math.max(1, cols * rows);
+    var idx = writeIndex[key] % capacity;
+    writeIndex[key] += 1;
+    var row = Math.floor(idx / cols);
+    var c = idx % cols;
+    settled[key][idx] = {
+      x: bounds.x + c*CELL + CELL/2,
+      y: bounds.y + row*CELL + CELL/2,
+      color: p.color,
+      shape: p.shape,
+      born: performance.now()
+    };
+  }
+
+  function assignSeverity(p){
+    var idx = weightedPick(SEV_WEIGHTS);
+    var s = SEV[idx];
+    p.severity = s;
+    stats.total++; stats[s.key]++;
+    pushStats();
+  }
+
+  // ---------- drawing ----------
+  function drawShape(ctx, shape, x, y, size, color, glow){
+    size = Math.max(0, size); // arc()/arcTo() throw on a negative radius
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.fillStyle = color;
+    if (glow){
+      ctx.shadowColor = color;
+      ctx.shadowBlur = size*2.2;
+    }
+    switch(shape){
+      case "rrect": {
+        var s = size, r = s*0.28;
+        ctx.beginPath();
+        roundRectPath(ctx, -s/2, -s/2*0.8, s, s*0.8, r);
+        ctx.fill();
+        break;
+      }
+      case "circle":
+        ctx.beginPath();
+        ctx.arc(0,0,size/2,0,Math.PI*2);
+        ctx.fill();
+        break;
+      case "diamond":
+        ctx.rotate(Math.PI/4);
+        ctx.fillRect(-size/2.6, -size/2.6, size/1.3, size/1.3);
+        break;
+      case "grid": {
+        var g = size*0.9;
+        ctx.fillRect(-g/2, -g/2, g, g);
+        ctx.fillStyle = "rgba(0,0,0,0.4)";
+        ctx.fillRect(-g/2, -0.5, g, 1);
+        ctx.fillRect(-0.5, -g/2, 1, g);
+        break;
+      }
+      case "tri":
+        ctx.beginPath();
+        ctx.moveTo(-size/2, -size/2);
+        ctx.lineTo(-size/2, size/2);
+        ctx.lineTo(size/2, 0);
+        ctx.closePath();
+        ctx.fill();
+        break;
+    }
+    ctx.restore();
+  }
+  function roundRectPath(ctx,x,y,w,h,r){
+    // arcTo throws if r is negative; size can dip fractionally below 0 from
+    // floating-point drift in pop-in easing, so clamp defensively at the source.
+    r = Math.max(0, r);
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function frame(now, dt){
+    var stageRect = stageEl.getBoundingClientRect();
+    ctx.clearRect(0,0,stageRect.width, stageRect.height);
+
+    // scanning sweeps + zone tint pulse
+    laneMeta.forEach(function(m,i){
+      var t = now/1000;
+      var sweepX = lerp(m.zoneLeft, m.zoneRight, 0.5+0.5*Math.sin(t*0.55 + i*1.4));
+      var grad = ctx.createLinearGradient(sweepX-26,0,sweepX+26,0);
+      grad.addColorStop(0, "rgba(79,168,255,0)");
+      grad.addColorStop(0.5, "rgba(79,168,255,0.16)");
+      grad.addColorStop(1, "rgba(79,168,255,0)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(sweepX-26, m.top, 52, m.bottom-m.top);
+      ctx.strokeStyle = "rgba(79,168,255,0.55)";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(sweepX, m.top);
+      ctx.lineTo(sweepX, m.bottom);
+      ctx.stroke();
+      m._sweepX = sweepX;
+    });
+
+    // spawn
+    frame.spawnTimer = (frame.spawnTimer||0) + dt;
+    var interval = 0.16 + Math.random()*0.12;
+    if (frame.spawnTimer > interval && particles.length < 140){
+      frame.spawnTimer = 0;
+      particles.push(spawnParticle());
+    }
+
+    // update + draw traveling particles. Each particle is isolated in its own
+    // try/catch: one bad particle must never stop the rest of the array from
+    // being processed this tick (or on any future tick) — that silent
+    // knock-on stall is what made earlier builds of this demo look frozen.
+    for (var i = particles.length-1; i>=0; i--){
+      try {
+        var p = particles[i];
+        var aKey = p.path[p.seg], bKey = p.path[p.seg+1];
+        var a = coords[aKey], b = coords[bKey];
+        if (!a || !b){ particles.splice(i,1); continue; }
+        var dist = Math.hypot(b.x-a.x, b.y-a.y);
+        var duration = Math.max(0.25, dist / p.speed);
+        p.segT += dt / duration;
+
+        // severity assignment + color transition on the exit->converge segment
+        if (p.seg === 3 && p.severity === null){
+          assignSeverity(p);
+        }
+
+        var tRaw = Math.min(1, p.segT);
+        var te = easeInOut(tRaw);
+        var x = lerp(a.x, b.x, te);
+        var y = lerp(a.y, b.y, te);
+
+        // perpendicular jitter, damped near lane travel (seg 2) to stay inside the zone band
+        var jitterScale = (p.seg === 2) ? 0.35 : 1;
+        if (reduced) jitterScale *= 0.35;
+        var jitter = Math.sin(now/260 + p.jitterPhase) * p.jitterAmp * jitterScale;
+        var dx = b.x-a.x, dy = b.y-a.y;
+        var len = Math.hypot(dx,dy) || 1;
+        var nx = -dy/len, ny = dx/len;
+        x += nx*jitter; y += ny*jitter;
+
+        var displayColor = p.baseColor;
+        if (p.seg === 3 && p.severity){
+          displayColor = mixColor(p.baseColor, p.severity.color, te);
+        } else if (p.seg >= 4 && p.severity){
+          displayColor = p.severity.color;
+        }
+        p.color = p.severity ? p.severity.color : p.baseColor;
+
+        var glow = false;
+        if (p.seg === 2 && !reduced){
+          var m = laneMeta[p.laneIdx];
+          if (m && Math.abs(x - m._sweepX) < 16) glow = true;
+        }
+        var size = glow ? 11 : 8.5;
+        drawShape(ctx, p.shape, x, y, size, displayColor, glow);
+
+        if (p.segT >= 1){
+          p.seg += 1;
+          p.segT = 0;
+          if (p.seg >= p.path.length - 1){
+            settleParticle(p);
+            particles.splice(i,1);
+          }
+        }
+      } catch (e) {
+        console.error("classification-pipeline-demo: particle error, dropping it", e);
+        particles.splice(i,1);
+      }
+    }
+
+    // settled dots — same per-item isolation as above.
+    ["lake","warehouse"].forEach(function(k){
+      settled[k].forEach(function(d){
+        if (!d) return;
+        try {
+          var age = now - d.born;
+          var pop = Math.max(0, Math.min(1, age/260));
+          drawShape(ctx, d.shape, d.x, d.y, 8*pop, d.color, false);
+        } catch (e) {
+          console.error("classification-pipeline-demo: settled-dot draw error", e);
+        }
+      });
+    });
+  }
+
+  var last = null;
+  var running = true;
+  var rafAlive = performance.now();
+
+  function loop(now){
+    if (last === null) last = now;
+    var dt = Math.min(0.05, (now-last)/1000);
+    last = now;
+    rafAlive = performance.now();
+    if (running){
+      // A stray exception here must never kill the rAF chain — that is
+      // exactly what made earlier builds of this demo appear to "stop".
+      try { frame(now, dt); }
+      catch (e) { console.error("classification-pipeline-demo: frame error", e); }
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // Watchdog: if something outside our control (browser throttling an
+  // invisible/backgrounded iframe, or any failure mode not covered above)
+  // ever stalls the rAF chain while running, kick it back to life instead of
+  // leaving the canvas showing a permanently stale frame.
+  setInterval(function(){
+    if (running && performance.now() - rafAlive > 1200){
+      console.warn("classification-pipeline-demo: rAF stalled, restarting");
+      last = null;
+      rafAlive = performance.now();
+      requestAnimationFrame(loop);
+    }
+  }, 800);
+
+  function resetSim(){
+    particles = [];
+    settled.lake = []; settled.warehouse = [];
+    writeIndex.lake = 0; writeIndex.warehouse = 0;
+    stats.total = 0; stats.none = 0; stats.low = 0; stats.medium = 0; stats.high = 0;
+    pushStats();
+    frame.spawnTimer = 0;
+    last = null;
+    computeCoords();
+    var stageRect = stageEl.getBoundingClientRect();
+    ctx.clearRect(0, 0, stageRect.width, stageRect.height);
+  }
+
+  var playBtn = document.getElementById("playPauseBtn");
+  var resetBtn = document.getElementById("resetBtn");
+  var statusDot = document.getElementById("statusDot");
+  var statusLabel = document.getElementById("statusLabel");
+
+  function setRunning(next){
+    running = next;
+    playBtn.setAttribute("aria-pressed", String(!running));
+    playBtn.innerHTML = running ? ICON_PAUSE + "Pause" : ICON_PLAY + "Play";
+    statusDot.style.background = running ? "var(--sev-none)" : "var(--text-faint)";
+    statusDot.style.boxShadow = running ? "0 0 6px var(--sev-none)" : "none";
+    statusLabel.textContent = running ? "Live" : "Paused";
+  }
+
+  var ICON_PLAY = '<svg viewBox="0 0 12 12" fill="currentColor"><path d="M2.5 1.5v9l7-4.5z"/></svg>';
+  var ICON_PAUSE = '<svg viewBox="0 0 12 12" fill="currentColor"><rect x="2.5" y="1.5" width="2.6" height="9"/><rect x="6.9" y="1.5" width="2.6" height="9"/></svg>';
+  var ICON_RESET = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M9.8 6A3.8 3.8 0 1 1 8.4 3.1"/><path d="M9.8 1.8v2.6H7.2"/></svg>';
+  resetBtn.innerHTML = ICON_RESET + "Reset";
+
+  playBtn.addEventListener("click", function(){ setRunning(!running); });
+  resetBtn.addEventListener("click", resetSim);
+  setRunning(true);
+
+  function init(){
+    computeCoords();
+    // The rAF chain itself always runs (see loop()); reduced-motion dials
+    // down jitter/glow rather than freezing the scene, and Pause/Reset above
+    // give explicit manual control on top of the continuous default.
+    requestAnimationFrame(loop);
+  }
+
+  var resizeTimer = null;
+  window.addEventListener("resize", function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(computeCoords, 120);
+  });
+
+  if (document.fonts && document.fonts.ready){
+    document.fonts.ready.then(init);
+  } else {
+    init();
+  }
+})();
+</script>
